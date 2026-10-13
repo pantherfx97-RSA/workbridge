@@ -1,69 +1,126 @@
-import Image from "next/image";
+﻿const features = [
+  {
+    number: "01",
+    title: "Know your strengths",
+    description:
+      "Understand your existing skills and how they connect to your career goals.",
+  },
+  {
+    number: "02",
+    title: "Close your skills gaps",
+    description:
+      "Discover what you need to learn and follow a practical development plan.",
+  },
+  {
+    number: "03",
+    title: "Prove your abilities",
+    description:
+      "Build a portfolio of projects, certificates and practical experience.",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen overflow-hidden bg-[#080d18] text-white">
+      <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+        <a href="/" className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 font-bold">W</span>
+          <span className="text-xl font-bold">Work<span className="text-blue-400">Bridge</span></span>
+        </a>
+        <nav className="hidden gap-7 text-sm text-slate-300 sm:flex">
+          <a href="#how-it-works" className="hover:text-white">How it works</a>
+          <a href="#features" className="hover:text-white">Features</a>
+        </nav>
+        <a href="#get-started" className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm hover:border-blue-400">Get started ↗</a>
+      </header>
+
+      <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 py-20 lg:grid-cols-2 lg:py-28">
+        <div>
+          <span className="inline-flex rounded-full border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm text-blue-300">Your next chapter starts here</span>
+          <h1 className="mt-7 text-5xl font-bold leading-tight tracking-tight sm:text-6xl">Your potential deserves an <span className="text-blue-400">opportunity.</span></h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-400">Turn what you can do into your next opportunity. Discover your strengths, close your skills gaps and build a practical path towards work.</p>
+          <div id="get-started" className="mt-8 flex flex-wrap gap-4">
+            <a href="#how-it-works" className="rounded-xl bg-blue-500 px-6 py-4 font-semibold hover:bg-blue-400">Explore your potential →</a>
+            <a href="#features" className="rounded-xl border border-slate-700 px-6 py-4 font-semibold hover:bg-slate-800">Discover WorkBridge</a>
+          </div>
+          <div className="mt-8 flex flex-wrap gap-5 text-sm text-slate-400">
+            <span>✓ Skills-first approach</span>
+            <span>✓ Practical career pathways</span>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="rounded-3xl border border-slate-700 bg-[#101827] p-6 shadow-2xl shadow-blue-950/30 sm:p-8">
+          <p className="text-sm text-slate-400">YOUR CAREER JOURNEY</p>
+          <h2 className="mt-2 text-2xl font-bold">Make your next move.</h2>
+          <div className="mt-7 rounded-2xl border border-slate-700 bg-[#0b1220] p-5">
+            <p className="text-sm text-slate-400">EXAMPLE CAREER PATHWAY</p>
+            <h3 className="mt-2 text-lg font-semibold">IT Support Technician</h3>
+            <div className="mt-6 space-y-4">
+              {["Identify your strengths", "Discover skills to develop", "Build your action plan"].map((item, index) => (
+                <div key={item} className="flex items-center gap-4">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/15 text-sm text-blue-300">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="text-sm text-slate-200">{item}</span>
+                  <span className="ml-auto text-slate-500">→</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-slate-700 bg-[#0b1220] p-4">
+              <p className="text-sm text-slate-400">Your skills</p>
+              <p className="mt-2 font-bold">Discover</p>
+            </div>
+            <div className="rounded-2xl border border-slate-700 bg-[#0b1220] p-4">
+              <p className="text-sm text-slate-400">Your next step</p>
+              <p className="mt-2 font-bold">Take action</p>
+            </div>
+          </div>
+          <p className="mt-4 text-xs leading-5 text-slate-500">Illustrative preview. Personalised assessments and progress tracking will be developed next.</p>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section id="how-it-works" className="border-y border-slate-800 bg-[#0b1220] px-6 py-12">
+        <div className="mx-auto grid max-w-7xl gap-8 sm:grid-cols-3">
+          {[
+            ["01", "Understand", "Discover what you can already do."],
+            ["02", "Develop", "Build the skills you still need."],
+            ["03", "Move forward", "Prepare for relevant opportunities."],
+          ].map(([number, title, description]) => (
+            <div key={number} className="flex gap-4">
+              <span className="text-sm font-bold text-blue-400">{number}</span>
+              <div><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{description}</p></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="features" className="mx-auto max-w-7xl px-6 py-24">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-400">A better way forward</p>
+        <h2 className="mt-4 max-w-2xl text-3xl font-bold sm:text-4xl">More than finding a job. Building your future.</h2>
+        <p className="mt-5 max-w-2xl leading-7 text-slate-400">Understand your abilities, demonstrate your potential and take meaningful steps towards employment.</p>
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          {features.map((feature) => (
+            <article key={feature.number} className="rounded-2xl border border-slate-800 bg-[#101827] p-7 transition hover:-translate-y-1 hover:border-blue-400/50">
+              <span className="text-sm font-semibold text-blue-400">{feature.number}</span>
+              <h3 className="mt-5 text-xl font-bold">{feature.title}</h3>
+              <p className="mt-3 leading-7 text-slate-400">{feature.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="px-6 pb-24">
+        <div className="mx-auto max-w-7xl rounded-3xl border border-blue-400/20 bg-blue-500/10 px-7 py-14 text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-300">Your future is worth building</p>
+          <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold sm:text-5xl">You have potential. Let us turn it into progress.</h2>
+          <p className="mx-auto mt-5 max-w-2xl leading-7 text-slate-400">Start by understanding where you are. Then take the next step towards where you want to be.</p>
+          <a href="#get-started" className="mt-8 inline-block rounded-xl bg-blue-500 px-6 py-4 font-semibold hover:bg-blue-400">Start your journey →</a>
+        </div>
+      </section>
+
+      <footer className="border-t border-slate-800 px-6 py-8 text-center text-sm text-slate-500">
+        © {new Date().getFullYear()} WorkBridge. Turn what you can do into your next opportunity.
+      </footer>
+    </main>
   );
 }
