@@ -1,4 +1,6 @@
-﻿const features = [
+import Link from "next/link";
+
+const features = [
   {
     number: "01",
     title: "Know your strengths",
@@ -23,15 +25,15 @@ export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#080d18] text-white">
       <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-        <a href="/" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 font-bold">W</span>
           <span className="text-xl font-bold">Work<span className="text-blue-400">Bridge</span></span>
-        </a>
+        </Link>
         <nav className="hidden gap-7 text-sm text-slate-300 sm:flex">
           <a href="#how-it-works" className="hover:text-white">How it works</a>
           <a href="#features" className="hover:text-white">Features</a>
         </nav>
-        <a href="#get-started" className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm hover:border-blue-400">Get started ↗</a>
+        <a href="/assessment" className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm hover:border-blue-400">Get started -&gt;</a>
       </header>
 
       <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 py-20 lg:grid-cols-2 lg:py-28">
@@ -40,12 +42,12 @@ export default function Home() {
           <h1 className="mt-7 text-5xl font-bold leading-tight tracking-tight sm:text-6xl">Your potential deserves an <span className="text-blue-400">opportunity.</span></h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-slate-400">Turn what you can do into your next opportunity. Discover your strengths, close your skills gaps and build a practical path towards work.</p>
           <div id="get-started" className="mt-8 flex flex-wrap gap-4">
-            <a href="#how-it-works" className="rounded-xl bg-blue-500 px-6 py-4 font-semibold hover:bg-blue-400">Explore your potential →</a>
-            <a href="#features" className="rounded-xl border border-slate-700 px-6 py-4 font-semibold hover:bg-slate-800">Discover WorkBridge</a>
+            <a href="/assessment" className="rounded-xl bg-blue-500 px-6 py-4 font-semibold hover:bg-blue-400">Explore your potential -&gt;</a>
+            <a href="/assessment" className="rounded-xl border border-slate-700 px-6 py-4 font-semibold hover:bg-slate-800">Discover WorkBridge</a>
           </div>
           <div className="mt-8 flex flex-wrap gap-5 text-sm text-slate-400">
-            <span>✓ Skills-first approach</span>
-            <span>✓ Practical career pathways</span>
+            <span>&#10003; Skills-first approach</span>
+            <span>&#10003; Practical career pathways</span>
           </div>
         </div>
 
@@ -60,7 +62,7 @@ export default function Home() {
                 <div key={item} className="flex items-center gap-4">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/15 text-sm text-blue-300">{String(index + 1).padStart(2, "0")}</span>
                   <span className="text-sm text-slate-200">{item}</span>
-                  <span className="ml-auto text-slate-500">→</span>
+                  <span className="ml-auto text-slate-500">-&gt;</span>
                 </div>
               ))}
             </div>
@@ -75,7 +77,7 @@ export default function Home() {
               <p className="mt-2 font-bold">Take action</p>
             </div>
           </div>
-          <p className="mt-4 text-xs leading-5 text-slate-500">Illustrative preview. Personalised assessments and progress tracking will be developed next.</p>
+          <p className="mt-4 text-xs leading-5 text-slate-500">Explore your skills, follow a personalised learning roadmap, and build evidence of your progress.</p>
         </div>
       </section>
 
@@ -114,12 +116,12 @@ export default function Home() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-300">Your future is worth building</p>
           <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold sm:text-5xl">You have potential. Let us turn it into progress.</h2>
           <p className="mx-auto mt-5 max-w-2xl leading-7 text-slate-400">Start by understanding where you are. Then take the next step towards where you want to be.</p>
-          <a href="#get-started" className="mt-8 inline-block rounded-xl bg-blue-500 px-6 py-4 font-semibold hover:bg-blue-400">Start your journey →</a>
+          <a href="/assessment" className="mt-8 inline-block rounded-xl bg-blue-500 px-6 py-4 font-semibold hover:bg-blue-400">Start your journey -&gt;</a>
         </div>
       </section>
 
       <footer className="border-t border-slate-800 px-6 py-8 text-center text-sm text-slate-500">
-        © {new Date().getFullYear()} WorkBridge. Turn what you can do into your next opportunity.
+        &#169; {new Date().getFullYear()} WorkBridge. Turn what you can do into your next opportunity.
       </footer>
     </main>
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { readWorkBridgeCloudSnapshot, saveWorkBridgeRoadmapProgress } from "@/lib/workbridge/sync";
 
 type CareerGoal =
   | "IT Support Technician"
@@ -264,6 +266,8 @@ export default function RoadmapPage() {
   const [progressByGoal, setProgressByGoal] = useState<Record<string, string[]>>({});
   const [loaded, setLoaded] = useState(false);
   const [storageAvailable, setStorageAvailable] = useState(true);
+  const [cloudSyncAvailable, setCloudSyncAvailable] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState("Loading saved progress...");
 
   const weeks = careerPaths[goal].weeks;
   const allTasks = weeks.flatMap((week) => week.tasks);
@@ -275,83 +279,142 @@ export default function RoadmapPage() {
   );
 
   useEffect(() => {
-    try {
-      const savedProfile = window.localStorage.getItem(PROFILE_KEY);
-
-      if (savedProfile) {
-        const profile: unknown = JSON.parse(savedProfile);
-
-        if (profile && typeof profile === "object") {
-          const data = profile as { goal?: unknown; selectedSkills?: unknown };
-
-          if (
-            typeof data.goal === "string" &&
-            Object.prototype.hasOwnProperty.call(careerPaths, data.goal)
-          ) {
-            setGoal(data.goal as CareerGoal);
-          }
-
-          if (Array.isArray(data.selectedSkills)) {
-            setSelectedSkills(
-              data.selectedSkills.filter(
-                (skill): skill is string =>
-                  typeof skill === "string" && validSkillIds.includes(skill)
-              )
-            );
-          }
-        }
-      }
-    } catch {
-      setStorageAvailable(false);
-    }
-
-    try {
-      const savedProgress = window.localStorage.getItem(PROGRESS_KEY);
+    async function loadProgress() {
       const nextProgress: Record<string, string[]> = {};
 
-      if (savedProgress) {
-        const parsed: unknown = JSON.parse(savedProgress);
+      try {
+        const savedProfile = window.localStorage.getItem(PROFILE_KEY);
 
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          const saved = parsed as Record<string, unknown>;
+        if (savedProfile) {
+          const profile: unknown = JSON.parse(savedProfile);
 
-          (Object.keys(careerPaths) as CareerGoal[]).forEach((career) => {
-            const tasks = careerPaths[career].weeks.flatMap((week) => week.tasks);
-            const items = saved[career];
+          if (profile && typeof profile === "object") {
+            const data = profile as { goal?: unknown; selectedSkills?: unknown };
 
-            if (Array.isArray(items)) {
-              nextProgress[career] = items.filter(
-                (item): item is string =>
-                  typeof item === "string" && tasks.includes(item)
+            if (
+              typeof data.goal === "string" &&
+              Object.prototype.hasOwnProperty.call(careerPaths, data.goal)
+            ) {
+              setGoal(data.goal as CareerGoal);
+            }
+
+            if (Array.isArray(data.selectedSkills)) {
+              setSelectedSkills(
+                data.selectedSkills.filter(
+                  (skill): skill is string =>
+                    typeof skill === "string" && validSkillIds.includes(skill)
+                )
               );
             }
-          });
-        }
-      } else {
-        // Keep existing IT Support progress from the previous version.
-        const legacy = window.localStorage.getItem(LEGACY_KEY);
-
-        if (legacy) {
-          const parsedLegacy: unknown = JSON.parse(legacy);
-          const oldTasks = careerPaths["IT Support Technician"].weeks.flatMap(
-            (week) => week.tasks
-          );
-
-          if (Array.isArray(parsedLegacy)) {
-            nextProgress["IT Support Technician"] = parsedLegacy.filter(
-              (item): item is string =>
-                typeof item === "string" && oldTasks.includes(item)
-            );
           }
         }
+      } catch {
+        setStorageAvailable(false);
+      }
+
+      try {
+        const savedProgress = window.localStorage.getItem(PROGRESS_KEY);
+
+        if (savedProgress) {
+          const parsed: unknown = JSON.parse(savedProgress);
+
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            const saved = parsed as Record<string, unknown>;
+
+            (Object.keys(careerPaths) as CareerGoal[]).forEach((career) => {
+              const tasks = careerPaths[career].weeks.flatMap((week) => week.tasks);
+              const items = saved[career];
+
+              if (Array.isArray(items)) {
+                nextProgress[career] = items.filter(
+                  (item): item is string =>
+                    typeof item === "string" && tasks.includes(item)
+                );
+              }
+            });
+          }
+        } else {
+          const legacy = window.localStorage.getItem(LEGACY_KEY);
+
+          if (legacy) {
+            const parsedLegacy: unknown = JSON.parse(legacy);
+            const oldTasks = careerPaths["IT Support Technician"].weeks.flatMap(
+              (week) => week.tasks
+            );
+
+            if (Array.isArray(parsedLegacy)) {
+              nextProgress["IT Support Technician"] = parsedLegacy.filter(
+                (item): item is string =>
+                  typeof item === "string" && oldTasks.includes(item)
+              );
+            }
+          }
+        }
+      } catch {
+        setStorageAvailable(false);
+      }
+
+      try {
+        const cloudSnapshot = await readWorkBridgeCloudSnapshot();
+
+        // Use the account's career goal when this browser has no valid local goal.
+        const savedProfile = window.localStorage.getItem(PROFILE_KEY);
+        let hasValidLocalGoal = false;
+
+        if (savedProfile) {
+          try {
+            const parsed: unknown = JSON.parse(savedProfile);
+            if (parsed && typeof parsed === "object") {
+              const localGoal = (parsed as { goal?: unknown }).goal;
+              hasValidLocalGoal =
+                typeof localGoal === "string" &&
+                Object.prototype.hasOwnProperty.call(careerPaths, localGoal);
+            }
+          } catch {
+            hasValidLocalGoal = false;
+          }
+        }
+
+        if (
+          !hasValidLocalGoal &&
+          typeof cloudSnapshot.careerGoal === "string" &&
+          Object.prototype.hasOwnProperty.call(careerPaths, cloudSnapshot.careerGoal)
+        ) {
+          setGoal(cloudSnapshot.careerGoal as CareerGoal);
+        }
+
+        if (!hasValidLocalGoal && cloudSnapshot.selectedSkills.length > 0) {
+          setSelectedSkills(
+            cloudSnapshot.selectedSkills.filter((skill) => validSkillIds.includes(skill))
+          );
+        }
+
+        (Object.keys(careerPaths) as CareerGoal[]).forEach((career) => {
+          const validTasks = careerPaths[career].weeks.flatMap((week) => week.tasks);
+          const cloudTasks = cloudSnapshot.roadmapProgress[career] ?? [];
+          const localTasks = nextProgress[career] ?? [];
+          const mergedTasks = [...localTasks, ...cloudTasks].filter(
+            (task, index, all) =>
+              validTasks.includes(task) && all.indexOf(task) === index
+          );
+
+          if (mergedTasks.length > 0 || career in cloudSnapshot.roadmapProgress) {
+            nextProgress[career] = mergedTasks;
+          }
+        });
+
+        setCloudSyncAvailable(true);
+        setCloudStatus("Cloud progress loaded and merged with this browser.");
+      } catch {
+        setCloudSyncAvailable(false);
+        setCloudStatus("Showing local progress. Cloud data could not be loaded; cloud saving is paused.");
       }
 
       setProgressByGoal(nextProgress);
-    } catch {
-      setStorageAvailable(false);
-    } finally {
       setLoaded(true);
     }
+
+    void loadProgress();
   }, []);
 
   useEffect(() => {
@@ -359,21 +422,44 @@ export default function RoadmapPage() {
 
     try {
       window.localStorage.setItem(PROGRESS_KEY, JSON.stringify(progressByGoal));
-      setStorageAvailable(true);
+
     } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Report a browser-storage write failure.
       setStorageAvailable(false);
     }
   }, [progressByGoal, loaded]);
 
-  function toggleTask(task: string) {
-    setProgressByGoal((current) => {
-      const currentTasks = current[goal] ?? [];
-      const nextTasks = currentTasks.includes(task)
-        ? currentTasks.filter((item) => item !== task)
-        : [...currentTasks, task];
+  async function persistCareerProgress(career: CareerGoal, tasks: string[]) {
+    if (!cloudSyncAvailable) {
+      setCloudStatus("Cloud saving is paused because cloud progress was not loaded successfully.");
+      return;
+    }
 
-      return { ...current, [goal]: nextTasks };
-    });
+    try {
+      await saveWorkBridgeRoadmapProgress({
+        careerGoal: career,
+        completedTasks: tasks,
+      });
+      setCloudStatus("Cloud progress saved successfully.");
+    } catch {
+      setCloudStatus("Progress is saved in this browser, but the cloud save failed.");
+    }
+  }
+
+  function toggleTask(task: string) {
+    const currentTasks = progressByGoal[goal] ?? [];
+    const nextTasks = currentTasks.includes(task)
+      ? currentTasks.filter((item) => item !== task)
+      : [...currentTasks, task];
+
+    setProgressByGoal((current) => ({
+      ...current,
+      [goal]: nextTasks,
+    }));
+
+    if (loaded) {
+      void persistCareerProgress(goal, nextTasks);
+    }
   }
 
   function resetProgress() {
@@ -383,6 +469,10 @@ export default function RoadmapPage() {
 
     if (confirmed) {
       setProgressByGoal((current) => ({ ...current, [goal]: [] }));
+
+      if (loaded) {
+        void persistCareerProgress(goal, []);
+      }
     }
   }
 
@@ -390,9 +480,9 @@ export default function RoadmapPage() {
     <main className="min-h-screen bg-[#080d18] px-5 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-4xl">
         <header className="flex items-center justify-between">
-          <a href="/" className="text-xl font-bold">
+          <Link href="/" className="text-xl font-bold">
             Work<span className="text-blue-400">Bridge</span>
-          </a>
+          </Link>
           <a href="/assessment" className="text-sm text-slate-400 hover:text-white">
             ← Career assessment
           </a>
@@ -442,6 +532,18 @@ export default function RoadmapPage() {
               style={{ width: `${progress}%` }}
             />
           </div>
+
+          <p
+            className={`mt-3 text-sm ${
+              cloudSyncAvailable
+                ? "text-emerald-400"
+                : "text-amber-300"
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            {cloudStatus}
+          </p>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
             <p aria-live="polite" className="text-xs text-slate-400">

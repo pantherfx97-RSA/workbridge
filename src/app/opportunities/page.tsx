@@ -274,6 +274,7 @@ export default function OpportunitiesPage() {
             typeof data.goal === "string" &&
             opportunities.some((item) => item.title === data.goal)
           ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Restore the saved career profile after hydration.
             setCareer(data.goal);
           }
 
@@ -358,6 +359,54 @@ export default function OpportunitiesPage() {
     ),
   }));
 
+  const careerComparisons = opportunities.map((opportunity) => {
+    const careerEvidence = evidence.filter(
+      (item) => item.career === opportunity.title,
+    );
+
+    const statuses = opportunity.requirements.map((requirement) =>
+      getStatus(
+        requirement,
+        selectedSkills,
+        learnedTechnicalSkills,
+        demonstratedTechnicalSkills,
+        careerEvidence,
+      ),
+    );
+
+    const nextRequirementIndex = [
+      "Practical work reported",
+      "Learned",
+      "General skill reported",
+      "Not demonstrated yet",
+    ]
+      .map((status) => statuses.findIndex((item) => item === status))
+      .find((index) => index !== -1);
+
+    const nextRequirement =
+      nextRequirementIndex === undefined
+        ? undefined
+        : opportunity.requirements[nextRequirementIndex];
+
+    const nextProject = nextRequirement
+      ? recommendationProjects[opportunity.title]?.[nextRequirement.name]
+      : undefined;
+
+    return {
+      opportunity,
+      profileSignalsCount: statuses.filter(
+        (status) => status !== "Not demonstrated yet",
+      ).length,
+      evidenceCount: statuses.filter(
+        (status) => status === "Evidence saved",
+      ).length,
+      notDemonstratedCount: statuses.filter(
+        (status) => status === "Not demonstrated yet",
+      ).length,
+      nextRequirement,
+      nextProject,
+    };
+  });
   const evidenceCount = results.filter(
     (item) => item.status === "Evidence saved",
   ).length;
@@ -440,6 +489,89 @@ export default function OpportunitiesPage() {
                   {item.summary}
                 </span>
               </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <div className="max-w-3xl">
+            <h2 className="text-xl font-bold">Compare your career paths</h2>
+            <p className="mt-2 leading-6 text-slate-400">
+              Compare your current profile signals across these example roles.
+              Counts describe your saved information, not verified ability or
+              employability.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {careerComparisons.map((comparison) => (
+              <article
+                key={comparison.opportunity.title}
+                className={`rounded-2xl border p-5 ${
+                  career === comparison.opportunity.title
+                    ? "border-blue-400 bg-blue-500/10"
+                    : "border-slate-700 bg-slate-900"
+                }`}
+              >
+                <h3 className="font-semibold">
+                  {comparison.opportunity.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  {comparison.opportunity.summary}
+                </p>
+
+                <dl className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-sm text-slate-400">Profile signals</dt>
+                    <dd className="font-semibold tabular-nums">
+                      {comparison.profileSignalsCount}/{comparison.opportunity.requirements.length}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-sm text-slate-400">Evidence saved</dt>
+                    <dd className="font-semibold tabular-nums">
+                      {comparison.evidenceCount}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-sm text-slate-400">Skills to develop</dt>
+                    <dd className="font-semibold tabular-nums">
+                      {comparison.notDemonstratedCount}
+                    </dd>
+                  </div>
+                </dl>
+
+                {comparison.nextRequirement && comparison.nextProject && (
+                  <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-300">
+                      Suggested next step
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {comparison.nextRequirement.name}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                      {comparison.nextProject.title}
+                    </p>
+                    <Link
+                      href={`/portfolio?career=${encodeURIComponent(comparison.opportunity.title)}&title=${encodeURIComponent(comparison.nextProject.title)}&skill=${encodeURIComponent(comparison.nextProject.skill)}`}
+                      className="mt-3 inline-flex text-sm font-semibold text-blue-300 hover:text-blue-200"
+                    >
+                      Prepare portfolio entry
+                    </Link>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setCareer(comparison.opportunity.title)}
+                  aria-pressed={career === comparison.opportunity.title}
+                  className="mt-5 w-full rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold transition hover:border-blue-400 hover:bg-slate-800"
+                >
+                  {career === comparison.opportunity.title
+                    ? "Currently exploring"
+                    : "Explore this career"}
+                </button>
+              </article>
             ))}
           </div>
         </section>
@@ -634,7 +766,7 @@ export default function OpportunitiesPage() {
         </section>
 
         <footer className="py-8 text-sm text-slate-500">
-          WorkBridge � Learn it. Practise it. Prove it.
+          WorkBridge - Learn it. Practise it. Prove it.
         </footer>
       </div>
     </main>

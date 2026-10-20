@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { readWorkBridgeCloudSnapshot, saveWorkBridgePortfolioEntry, deleteWorkBridgePortfolioEntry } from "@/lib/workbridge/sync";
 
 type Evidence = {
   id: string;
@@ -11,6 +12,8 @@ type Evidence = {
   career: string;
   url: string;
   createdAt: string;
+  localId?: string | null;
+  cloudId?: string;
 };
 
 const STORAGE_KEY = "workbridge-evidence-portfolio";
@@ -57,6 +60,9 @@ export default function PortfolioPage() {
   const [career, setCareer] = useState("Software Developer");
   const [items, setItems] = useState<Evidence[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [cloudLoaded, setCloudLoaded] = useState(false);
+  const [cloudAvailable, setCloudAvailable] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState("Loading your portfolio...");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [skill, setSkill] = useState("");
@@ -64,36 +70,94 @@ export default function PortfolioPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    try {
-      const profile = localStorage.getItem(
-        "workbridge-assessment-profile"
-      );
+    let cancelled = false;
 
-      if (profile) {
-        const parsed = JSON.parse(profile);
-        if (
-          typeof parsed.goal === "string" &&
-          skillsByCareer[parsed.goal]
-        ) {
-          setCareer(parsed.goal);
+    async function loadPortfolio() {
+      let localItems: Evidence[] = [];
+
+      try {
+        const profile = localStorage.getItem("workbridge-assessment-profile");
+        if (profile) {
+          const parsed = JSON.parse(profile);
+          if (typeof parsed.goal === "string" && skillsByCareer[parsed.goal]) {
+            setCareer(parsed.goal);
+          }
         }
+
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed: unknown = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            localItems = parsed.filter(
+              (item): item is Evidence =>
+                typeof item === "object" &&
+                item !== null &&
+                typeof item.id === "string" &&
+                typeof item.title === "string" &&
+                typeof item.description === "string" &&
+                typeof item.skill === "string" &&
+                typeof item.career === "string"
+            );
+          }
+        }
+      } catch {
+        if (!cancelled) setMessage("Some saved browser data could not be loaded.");
       }
 
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setItems(parsed);
+      if (cancelled) return;
+      setItems(localItems);
+      setLoaded(true);
+
+      try {
+        const snapshot = await readWorkBridgeCloudSnapshot();
+        if (cancelled) return;
+
+        const cloudItems: Evidence[] = snapshot.portfolioEntries.map((entry) => ({
+          id: entry.localId ?? entry.id,
+          localId: entry.localId,
+          cloudId: entry.id,
+          title: entry.title,
+          description: entry.description,
+          skill: entry.skill,
+          career: entry.careerGoal,
+          url: entry.url ?? "",
+          createdAt: entry.createdAt,
+        }));
+
+        const merged = new Map<string, Evidence>();
+        for (const entry of localItems) merged.set(entry.id, entry);
+        for (const entry of cloudItems) {
+          const existing = merged.get(entry.id);
+          merged.set(entry.id, existing ? { ...existing, ...entry } : entry);
         }
+
+        setItems(
+          Array.from(merged.values()).sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+        );
+        setCloudAvailable(true);
+        setCloudStatus("Cloud portfolio loaded and merged with this browser.");
+      } catch {
+        if (!cancelled) {
+          setCloudAvailable(false);
+          setCloudStatus(
+            "Cloud portfolio unavailable. Your browser evidence remains available."
+          );
+        }
+      } finally {
+        if (!cancelled) setCloudLoaded(true);
       }
-    } catch {
-      setMessage("Saved browser data could not be loaded.");
     }
 
-    setLoaded(true);
+    void loadPortfolio();
+    return () => {
+      cancelled = true;
+    };
   }, []);
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !cloudLoaded) return;
 
     const params = new URLSearchParams(window.location.search);
     const requestedCareer = params.get("career");
@@ -101,6 +165,7 @@ export default function PortfolioPage() {
     const requestedSkill = params.get("skill");
 
     if (requestedCareer && skillsByCareer[requestedCareer]) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Apply the requested career from the URL after hydration.
       setCareer(requestedCareer);
 
       if (
@@ -114,21 +179,30 @@ export default function PortfolioPage() {
     if (requestedTitle) {
       setTitle(requestedTitle.slice(0, 100));
     }
-  }, [loaded]);
+  }, [loaded, cloudLoaded]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !cloudLoaded) return;
 
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     } catch {
-      setMessage("Could not save. Check your browser storage.");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Report a browser-storage write failure.
+setMessage("Could not save. Check your browser storage.");
     }
-  }, [items, loaded]);
+  }, [items, loaded, cloudLoaded]);
 
   const skills = skillsByCareer[career] ?? skillsByCareer["Software Developer"];
+  const careerEvidence = items.filter((item) => item.career === career);
+  const coveredSkills = skills.filter((item) =>
+    careerEvidence.some((entry) => entry.skill === item)
+  );
+  const missingSkills = skills.filter((item) => !coveredSkills.includes(item));
+  const coveragePercent = skills.length
+    ? Math.round((coveredSkills.length / skills.length) * 100)
+    : 0;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
 
@@ -153,8 +227,10 @@ export default function PortfolioPage() {
       }
     }
 
+    const entryId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const entry: Evidence = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: entryId,
+      localId: entryId,
       title: cleanTitle,
       description: cleanDescription,
       skill,
@@ -168,17 +244,62 @@ export default function PortfolioPage() {
     setDescription("");
     setSkill("");
     setUrl("");
-    setMessage("Evidence added to your portfolio.");
-  }
 
-  function removeEvidence(id: string) {
+    if (!cloudAvailable) {
+      setMessage("Evidence added to this browser. Cloud sync is currently unavailable.");
+      return;
+    }
+
+    try {
+      await saveWorkBridgePortfolioEntry({
+        localId: entryId,
+        title: cleanTitle,
+        description: cleanDescription,
+        skill,
+        careerGoal: career,
+        url: cleanUrl || null,
+      });
+      setMessage("Evidence saved to this browser and your account.");
+    } catch (error) {
+      console.error("WorkBridge portfolio cloud save failed:", error);
+      setCloudStatus("Cloud save is temporarily unavailable. Your browser evidence remains saved.");
+      setMessage("Evidence was saved in this browser, but cloud sync could not be confirmed. Please try again later.");
+    }
+  }
+  async function removeEvidence(id: string) {
     if (!window.confirm("Remove this evidence from your portfolio?")) {
       return;
     }
-    setItems((previous) => previous.filter((item) => item.id !== id));
-    setMessage("Evidence removed.");
-  }
 
+    const entry = items.find((item) => item.id === id);
+    if (!entry) return;
+
+    const mayExistInCloud = Boolean(entry.cloudId || entry.localId);
+
+    if (mayExistInCloud && !cloudAvailable) {
+      setMessage("Cloud access is unavailable. Restore cloud access before deleting this entry, to avoid it reappearing.");
+      return;
+    }
+
+    if (mayExistInCloud) {
+      try {
+        await deleteWorkBridgePortfolioEntry({
+          localId: entry.localId ?? null,
+          cloudId: entry.cloudId ?? "",
+        });
+      } catch {
+        setMessage("Could not delete this evidence from your account. It has been kept in your portfolio.");
+        return;
+      }
+    }
+
+    setItems((previous) => previous.filter((item) => item.id !== id));
+    setMessage(
+      mayExistInCloud
+        ? "Evidence removed from this browser and your account."
+        : "Evidence removed from this browser."
+    );
+  }
   const dateLabel = (value: string) => {
     const date = new Date(value);
     return Number.isNaN(date.getTime())
@@ -228,7 +349,7 @@ export default function PortfolioPage() {
             href="/assessment"
             className="mt-3 inline-block text-sm font-medium text-blue-400 hover:text-blue-300"
           >
-            Update assessment →
+            Update assessment &rarr;
           </Link>
         </section>
 
@@ -322,12 +443,108 @@ export default function PortfolioPage() {
           </form>
         </section>
 
+        <section className="mb-10 rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wider text-blue-400">
+                Portfolio progress
+              </p>
+              <h2 className="mt-2 text-xl font-bold">Your evidence at a glance</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                Track which skills have supporting entries for your selected career.
+                This measures documentation, not independently verified ability.
+              </p>
+            </div>
+            <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">
+              {coveragePercent}% documented
+            </span>
+          </div>
+
+          <div
+            className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800"
+            role="progressbar"
+            aria-label="Career skill evidence coverage"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={coveragePercent}
+          >
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all"
+              style={{ width: `${coveragePercent}%` }}
+            />
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <p className="text-sm text-slate-400">Evidence entries</p>
+              <p className="mt-2 text-3xl font-bold text-white">{careerEvidence.length}</p>
+              <p className="mt-1 text-xs text-slate-500">For {career}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <p className="text-sm text-slate-400">Skills covered</p>
+              <p className="mt-2 text-3xl font-bold text-white">
+                {coveredSkills.length}<span className="text-lg text-slate-500">/{skills.length}</span>
+              </p>
+              <p className="mt-1 text-xs text-slate-500">Skills with a matching entry</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+              <p className="text-sm text-slate-400">Skills to document</p>
+              <p className="mt-2 text-3xl font-bold text-white">{missingSkills.length}</p>
+              <p className="mt-1 text-xs text-slate-500">Potential next steps</p>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <h3 className="font-semibold">Career skill checklist</h3>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {skills.map((item) => {
+                const covered = coveredSkills.includes(item);
+                return (
+                  <li
+                    key={item}
+                    className="flex items-start gap-3 rounded-lg border border-slate-800 p-3"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={covered ? "text-emerald-400" : "text-slate-500"}
+                    >
+                      {covered ? "âœ“" : "â—‹"}
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm text-slate-200">{item}</span>
+                    <span className={covered ? "text-xs text-emerald-300" : "text-xs text-slate-500"}>
+                      {covered ? "Entry added" : "Not documented"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {missingSkills.length > 0 && (
+            <div className="mt-5 rounded-xl border border-blue-900/70 bg-blue-950/30 p-4">
+              <h3 className="font-semibold text-blue-200">Your next opportunity to practise</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Consider creating a practical exercise for{" "}
+                <span className="font-medium text-white">{missingSkills[0]}</span>.
+                Add an entry when you have completed the work and can describe what you did.
+              </p>
+              <a
+                href="#evidence-title"
+                className="mt-3 inline-block text-sm font-semibold text-blue-300 hover:text-blue-200"
+              >
+                Add evidence for a skill
+              </a>
+            </div>
+          )}
+        </section>
+
         <section>
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-2xl font-bold">Your evidence</h2>
+              <p className="mt-2 text-sm text-slate-400" role="status">{cloudStatus}</p>
               <p className="mt-1 text-sm text-slate-400">
-                Work samples you have added to this browser.
+                Work samples saved in this browser and, when available, your account.
               </p>
             </div>
             <span className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300">
@@ -336,7 +553,7 @@ export default function PortfolioPage() {
           </div>
 
           {!loaded ? (
-            <p className="text-slate-400">Loading your portfolio…</p>
+            <p className="text-slate-400">Loading your portfolio...</p>
           ) : items.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center">
               <h3 className="font-semibold">Your portfolio starts here</h3>
@@ -368,7 +585,7 @@ export default function PortfolioPage() {
                       rel="noopener noreferrer"
                       className="mt-4 inline-block break-all text-sm text-blue-400 hover:text-blue-300"
                     >
-                      Open project link ↗
+                      Open project link &rarr;
                     </a>
                   )}
                   <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-800 pt-4">
@@ -390,10 +607,9 @@ export default function PortfolioPage() {
         </section>
 
         <footer className="mt-14 border-t border-slate-800 py-6 text-sm text-slate-500">
-          WorkBridge · Learn it. Practise it. Prove it.
+          WorkBridge | Learn it. Practise it. Prove it.
           <p className="mt-2">
-            MVP note: evidence is stored in this browser. It is not yet
-            uploaded, independently verified or shared with employers.
+            Cloud sync is available when your account is connected. Evidence is not independently verified or shared with employers.
           </p>
         </footer>
       </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { readWorkBridgeCloudSnapshot, saveWorkBridgeProfile } from "@/lib/workbridge/sync";
 
 const skills = [
   { id: "troubleshooting", label: "Basic technical troubleshooting" },
@@ -53,43 +55,112 @@ export default function AssessmentPage() {
   const [careerGoal, setCareerGoal] = useState("IT Support Technician");
   const [learnedTechnicalSkills, setLearnedTechnicalSkills] = useState<string[]>([]);
   const [demonstratedTechnicalSkills, setDemonstratedTechnicalSkills] = useState<string[]>([]);
+  const [syncStatus, setSyncStatus] = useState<string>("");
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("workbridge-assessment-profile");
-      if (!raw) return;
+    let cancelled = false;
 
-      const saved: unknown = JSON.parse(raw);
-      if (!saved || typeof saved !== "object") return;
+    async function loadAssessment() {
+      let hasValidLocalProfile = false;
 
-      const profile = saved as {
-        goal?: unknown;
-        selectedSkills?: unknown;
-        learnedTechnicalSkills?: unknown;
-        demonstratedTechnicalSkills?: unknown;
-      };
+      try {
+        const raw = window.localStorage.getItem("workbridge-assessment-profile");
 
-      if (
-        typeof profile.goal === "string" &&
-        Object.prototype.hasOwnProperty.call(technicalSkillsByCareer, profile.goal)
-      ) {
-        setCareerGoal(profile.goal);
+        if (raw) {
+          const saved: unknown = JSON.parse(raw);
+
+          if (saved && typeof saved === "object") {
+            const profile = saved as {
+              goal?: unknown;
+              selectedSkills?: unknown;
+              learnedTechnicalSkills?: unknown;
+              demonstratedTechnicalSkills?: unknown;
+            };
+
+            if (
+              typeof profile.goal === "string" &&
+              Object.prototype.hasOwnProperty.call(technicalSkillsByCareer, profile.goal)
+            ) {
+              hasValidLocalProfile = true;
+              if (cancelled) return;
+
+              setCareerGoal(profile.goal);
+
+              if (Array.isArray(profile.selectedSkills)) {
+                setSelectedSkills(profile.selectedSkills.filter((v): v is string =>
+                  typeof v === "string" && skills.some((skill) => skill.id === v)
+                ));
+              }
+
+              const validTechnicalIds = new Set(
+                technicalSkillsByCareer[profile.goal].map((skill) => skill.id)
+              );
+
+              if (Array.isArray(profile.learnedTechnicalSkills)) {
+                setLearnedTechnicalSkills(profile.learnedTechnicalSkills.filter(
+                  (v): v is string => typeof v === "string" && validTechnicalIds.has(v)
+                ));
+              }
+
+              if (Array.isArray(profile.demonstratedTechnicalSkills)) {
+                setDemonstratedTechnicalSkills(profile.demonstratedTechnicalSkills.filter(
+                  (v): v is string => typeof v === "string" && validTechnicalIds.has(v)
+                ));
+              }
+            }
+          }
+        }
+      } catch {
+        console.warn("Could not load the saved assessment profile from this browser.");
       }
 
-      if (Array.isArray(profile.selectedSkills)) {
-        setSelectedSkills(profile.selectedSkills.filter((v): v is string => typeof v === "string"));
-      }
+      try {
+        const cloud = await readWorkBridgeCloudSnapshot();
+        if (cancelled) return;
 
-      if (Array.isArray(profile.learnedTechnicalSkills)) {
-        setLearnedTechnicalSkills(profile.learnedTechnicalSkills.filter((v): v is string => typeof v === "string"));
-      }
+        if (!hasValidLocalProfile) {
+          const cloudGoal =
+            typeof cloud.careerGoal === "string" &&
+            Object.prototype.hasOwnProperty.call(technicalSkillsByCareer, cloud.careerGoal)
+              ? cloud.careerGoal
+              : null;
 
-      if (Array.isArray(profile.demonstratedTechnicalSkills)) {
-        setDemonstratedTechnicalSkills(profile.demonstratedTechnicalSkills.filter((v): v is string => typeof v === "string"));
+          if (cloudGoal) {
+            setCareerGoal(cloudGoal);
+
+            const validTechnicalIds = new Set(
+              technicalSkillsByCareer[cloudGoal].map((skill) => skill.id)
+            );
+
+            setSelectedSkills(cloud.selectedSkills.filter((id) =>
+              skills.some((skill) => skill.id === id)
+            ));
+
+            setLearnedTechnicalSkills(cloud.learnedTechnicalSkills.filter((id) =>
+              validTechnicalIds.has(id)
+            ));
+
+            setDemonstratedTechnicalSkills(cloud.demonstratedTechnicalSkills.filter((id) =>
+              validTechnicalIds.has(id)
+            ));
+
+            setSyncStatus("Cloud assessment loaded for this browser.");
+          } else {
+            setSyncStatus("No saved cloud assessment was found. You can complete the assessment below.");
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setSyncStatus("Cloud assessment could not be loaded. Your browser's saved data was kept.");
+        }
       }
-    } catch {
-      console.warn("Could not load the saved assessment profile.");
     }
+
+    void loadAssessment();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const careerSkills = technicalSkillsByCareer[careerGoal] ?? [];
@@ -101,14 +172,15 @@ export default function AssessmentPage() {
     missing: string[];
   } | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const form = new FormData(event.currentTarget);
     const name = String(form.get("name") || "").trim();
     const goal = String(form.get("goal") || "IT Support Technician");
 
-    // Save the career goal and selected skills for the personalised roadmap.
+    let localSaved = false;
+
     try {
       window.localStorage.setItem(
         "workbridge-assessment-profile",
@@ -119,6 +191,7 @@ export default function AssessmentPage() {
           demonstratedTechnicalSkills,
         })
       );
+      localSaved = true;
     } catch {
       console.warn("Could not save the assessment profile in this browser.");
     }
@@ -136,7 +209,24 @@ export default function AssessmentPage() {
         .map((skill) => skill.label),
     });
 
+    setSyncStatus("Saving assessment to your account…");
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    try {
+      await saveWorkBridgeProfile({
+        careerGoal: goal,
+        selectedSkills,
+        learnedTechnicalSkills,
+        demonstratedTechnicalSkills,
+      });
+      setSyncStatus("Assessment synced to your account.");
+    } catch {
+      setSyncStatus(
+        localSaved
+          ? "Assessment saved in this browser. Cloud sync is unavailable or you need to sign in."
+          : "Cloud sync failed, and this browser could not save the assessment."
+      );
+    }
   }
 
   function toggleSkill(id: string) {
@@ -152,12 +242,12 @@ export default function AssessmentPage() {
     <main className="min-h-screen bg-[#080d18] px-5 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-3xl">
         <header className="mb-10 flex items-center justify-between">
-          <a href="/" className="text-xl font-bold">
+          <Link href="/" className="text-xl font-bold">
             Work<span className="text-blue-400">Bridge</span>
-          </a>
-          <a href="/" className="text-sm text-slate-400 hover:text-white">
+          </Link>
+          <Link href="/" className="text-sm text-slate-400 hover:text-white">
             ← Back home
-          </a>
+          </Link>
         </header>
 
         <div className="mb-8">
@@ -172,6 +262,16 @@ export default function AssessmentPage() {
             you already have and the next steps towards your career goal.
           </p>
         </div>
+
+        {syncStatus && (
+          <p
+            role="status"
+            aria-live="polite"
+            className="mb-4 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm text-slate-300"
+          >
+            {syncStatus}
+          </p>
+        )}
 
         {result && (
           <section
@@ -444,7 +544,7 @@ export default function AssessmentPage() {
             Calculate my skill coverage →
           </button>
           <p className="text-center text-xs leading-5 text-slate-500">
-            This demo does not save your personal information to a database.
+            Your career goal and selected skills sync to your signed-in WorkBridge account. Your name, town/city, education and work experience are not currently saved to the cloud.
           </p>
         </form>
 
