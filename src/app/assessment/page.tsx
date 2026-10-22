@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { readWorkBridgeCloudSnapshot, saveWorkBridgeProfile } from "@/lib/workbridge/sync";
+import { getWorkBridgeStorageScope, readWorkBridgeCloudSnapshot, saveWorkBridgeProfile } from "@/lib/workbridge/sync";
 
 const skills = [
   { id: "troubleshooting", label: "Basic technical troubleshooting" },
@@ -52,7 +52,7 @@ const technicalSkillsByCareer: Record<string, { id: string; label: string }[]> =
 
 export default function AssessmentPage() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [careerGoal, setCareerGoal] = useState("IT Support Technician");
+  const [careerGoal, setCareerGoal] = useState("");
   const [learnedTechnicalSkills, setLearnedTechnicalSkills] = useState<string[]>([]);
   const [demonstratedTechnicalSkills, setDemonstratedTechnicalSkills] = useState<string[]>([]);
   const [syncStatus, setSyncStatus] = useState<string>("");
@@ -64,7 +64,8 @@ export default function AssessmentPage() {
       let hasValidLocalProfile = false;
 
       try {
-        const raw = window.localStorage.getItem("workbridge-assessment-profile");
+        const storageScope = await getWorkBridgeStorageScope();
+        const raw = window.localStorage.getItem(storageScope.key("workbridge-assessment-profile"));
 
         if (raw) {
           const saved: unknown = JSON.parse(raw);
@@ -177,13 +178,19 @@ export default function AssessmentPage() {
 
     const form = new FormData(event.currentTarget);
     const name = String(form.get("name") || "").trim();
-    const goal = String(form.get("goal") || "IT Support Technician");
+    const goal = String(form.get("goal") || "").trim();
+
+    if (!Object.prototype.hasOwnProperty.call(technicalSkillsByCareer, goal)) {
+      setSyncStatus("Please select a career goal before saving your assessment.");
+      return;
+    }
 
     let localSaved = false;
 
     try {
+      const storageScope = await getWorkBridgeStorageScope();
       window.localStorage.setItem(
-        "workbridge-assessment-profile",
+        storageScope.key("workbridge-assessment-profile"),
         JSON.stringify({
           goal,
           selectedSkills,
@@ -209,7 +216,7 @@ export default function AssessmentPage() {
         .map((skill) => skill.label),
     });
 
-    setSyncStatus("Saving assessment to your account…");
+    setSyncStatus("Saving assessment to your account...");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     try {
@@ -246,13 +253,13 @@ export default function AssessmentPage() {
             Work<span className="text-blue-400">Bridge</span>
           </Link>
           <Link href="/" className="text-sm text-slate-400 hover:text-white">
-            ← Back home
+            Back home
           </Link>
         </header>
 
         <div className="mb-8">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-400">
-            Career readiness • Step 1
+            Career readiness &#8226; Step 1
           </p>
           <h1 className="mt-3 text-3xl font-bold sm:text-4xl">
             Turn your potential into a plan.
@@ -314,7 +321,7 @@ export default function AssessmentPage() {
               <ul className="mt-3 space-y-3">
                 {result.missing.map((skill) => (
                   <li key={skill} className="flex gap-3 text-sm text-slate-300">
-                    <span className="text-blue-300">→</span>
+                    <span className="text-blue-300">&#8226;</span>
                     <span>Learn and practise {skill.toLowerCase()}.</span>
                   </li>
                 ))}
@@ -407,7 +414,7 @@ export default function AssessmentPage() {
                   <option>No formal work experience</option>
                   <option>Informal work or volunteering</option>
                   <option>Less than 1 year</option>
-                  <option>1–3 years</option>
+                  <option>1-3 years</option>
                   <option>More than 3 years</option>
                 </select>
               </label>
@@ -431,6 +438,7 @@ export default function AssessmentPage() {
                 }}
                 className="mt-2 w-full rounded-xl border border-slate-700 bg-[#080d18] px-4 py-3 text-white outline-none focus:border-blue-400"
               >
+                <option value="" disabled>Select a career goal</option>
                 <option>IT Support Technician</option>
                 <option>Software Developer</option>
                 <option>Cybersecurity Analyst</option>
@@ -533,7 +541,7 @@ export default function AssessmentPage() {
             </div>
 
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Learned: {learnedTechnicalSkills.length} · Practically demonstrated (self-reported): {demonstratedTechnicalSkills.length}
+              Learned: {learnedTechnicalSkills.length} | Practically demonstrated (self-reported): {demonstratedTechnicalSkills.length}
             </p>
           </section>
 
@@ -541,7 +549,7 @@ export default function AssessmentPage() {
             type="submit"
             className="w-full rounded-xl bg-blue-500 px-5 py-4 font-semibold transition hover:bg-blue-400"
           >
-            Calculate my skill coverage →
+            Calculate my skill coverage
           </button>
           <p className="text-center text-xs leading-5 text-slate-500">
             Your career goal and selected skills sync to your signed-in WorkBridge account. Your name, town/city, education and work experience are not currently saved to the cloud.
@@ -549,7 +557,7 @@ export default function AssessmentPage() {
         </form>
 
         <footer className="py-8 text-center text-xs text-slate-500">
-          WorkBridge · Turn what you can do into your next opportunity.
+          WorkBridge - Turn what you can do into your next opportunity.
         </footer>
       </div>
     </main>

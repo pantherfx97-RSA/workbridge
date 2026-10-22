@@ -1,8 +1,25 @@
-import { createClient } from "@/lib/supabase/client";
+﻿import { createClient } from "@/lib/supabase/client";
 
 export const ASSESSMENT_STORAGE_KEY = "workbridge-assessment-profile";
 export const ROADMAP_STORAGE_KEY = "workbridge-roadmap-progress-v2";
 export const PORTFOLIO_STORAGE_KEY = "workbridge-evidence-portfolio";
+export async function getWorkBridgeStorageScope() {
+  const supabase = createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error) {
+    throw new Error(`Unable to determine the signed-in account: ${error.message}`);
+  }
+
+  const userId = user?.id ?? null;
+
+  return {
+    userId,
+    key(baseKey: string) {
+      return userId ? `${baseKey}:user:${userId}` : baseKey;
+    },
+  };
+}
 
 export type WorkBridgeCloudSnapshot = {
   careerGoal: string | null;

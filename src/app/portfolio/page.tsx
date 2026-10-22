@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { readWorkBridgeCloudSnapshot, saveWorkBridgePortfolioEntry, deleteWorkBridgePortfolioEntry } from "@/lib/workbridge/sync";
+import { getWorkBridgeStorageScope, readWorkBridgeCloudSnapshot, saveWorkBridgePortfolioEntry, deleteWorkBridgePortfolioEntry } from "@/lib/workbridge/sync";
 
 type Evidence = {
   id: string;
@@ -57,9 +57,10 @@ const skillsByCareer: Record<string, string[]> = {
 };
 
 export default function PortfolioPage() {
-  const [career, setCareer] = useState("Software Developer");
+  const [career, setCareer] = useState("");
   const [items, setItems] = useState<Evidence[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [storageKey, setStorageKey] = useState<string | null>(null);
   const [cloudLoaded, setCloudLoaded] = useState(false);
   const [cloudAvailable, setCloudAvailable] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("Loading your portfolio...");
@@ -74,17 +75,22 @@ export default function PortfolioPage() {
 
     async function loadPortfolio() {
       let localItems: Evidence[] = [];
+      let hasValidLocalCareer = false;
 
       try {
-        const profile = localStorage.getItem("workbridge-assessment-profile");
+        const storageScope = await getWorkBridgeStorageScope();
+        const scopedStorageKey = storageScope.key(STORAGE_KEY);
+        if (!cancelled) setStorageKey(scopedStorageKey);
+        const profile = localStorage.getItem(storageScope.key("workbridge-assessment-profile"));
         if (profile) {
           const parsed = JSON.parse(profile);
           if (typeof parsed.goal === "string" && skillsByCareer[parsed.goal]) {
             setCareer(parsed.goal);
+            hasValidLocalCareer = true;
           }
         }
 
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = localStorage.getItem(scopedStorageKey);
         if (saved) {
           const parsed: unknown = JSON.parse(saved);
           if (Array.isArray(parsed)) {
@@ -111,6 +117,15 @@ export default function PortfolioPage() {
       try {
         const snapshot = await readWorkBridgeCloudSnapshot();
         if (cancelled) return;
+
+        if (
+          !hasValidLocalCareer &&
+          typeof snapshot.careerGoal === "string" &&
+          Object.prototype.hasOwnProperty.call(skillsByCareer, snapshot.careerGoal)
+        ) {
+          setCareer(snapshot.careerGoal);
+        }
+
 
         const cloudItems: Evidence[] = snapshot.portfolioEntries.map((entry) => ({
           id: entry.localId ?? entry.id,
@@ -182,17 +197,17 @@ export default function PortfolioPage() {
   }, [loaded, cloudLoaded]);
 
   useEffect(() => {
-    if (!loaded || !cloudLoaded) return;
+    if (!loaded || !cloudLoaded || !storageKey) return;
 
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(storageKey, JSON.stringify(items));
     } catch {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Report a browser-storage write failure.
 setMessage("Could not save. Check your browser storage.");
     }
-  }, [items, loaded, cloudLoaded]);
+  }, [items, loaded, cloudLoaded, storageKey]);
 
-  const skills = skillsByCareer[career] ?? skillsByCareer["Software Developer"];
+  const skills = skillsByCareer[career] ?? [];
   const careerEvidence = items.filter((item) => item.career === career);
   const coveredSkills = skills.filter((item) =>
     careerEvidence.some((entry) => entry.skill === item)
@@ -205,6 +220,11 @@ setMessage("Could not save. Check your browser storage.");
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
+
+    if (!career || !skillsByCareer[career]) {
+      setMessage("Complete your assessment or choose a career from Opportunities before adding evidence.");
+      return;
+    }
 
     const cleanTitle = title.trim();
     const cleanDescription = description.trim();
@@ -340,10 +360,11 @@ setMessage("Could not save. Check your browser storage.");
 
         <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:p-7">
           <p className="text-sm text-slate-400">Your selected career</p>
-          <h2 className="mt-1 text-xl font-semibold">{career}</h2>
+          <h2 className="mt-1 text-xl font-semibold">{career || "No career selected yet"}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            Your career comes from your assessment. Each submission records
-            the career and skill you selected at the time.
+            {career
+              ? "Your career comes from your assessment or the career you chose to explore. Each submission records the career and skill selected at the time."
+              : "Complete your assessment or choose a career from Opportunities before adding evidence."}
           </p>
           <Link
             href="/assessment"
@@ -508,7 +529,7 @@ setMessage("Could not save. Check your browser storage.");
                       aria-hidden="true"
                       className={covered ? "text-emerald-400" : "text-slate-500"}
                     >
-                      {covered ? "âœ“" : "â—‹"}
+                      {covered ? "\u2713" : "\u25CB"}
                     </span>
                     <span className="min-w-0 flex-1 text-sm text-slate-200">{item}</span>
                     <span className={covered ? "text-xs text-emerald-300" : "text-xs text-slate-500"}>

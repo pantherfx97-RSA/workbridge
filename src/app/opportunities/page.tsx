@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getWorkBridgeStorageScope } from "@/lib/workbridge/sync";
 
 type Requirement = {
   name: string;
@@ -262,8 +263,18 @@ export default function OpportunitiesPage() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const profileRaw = localStorage.getItem(PROFILE_KEY);
+    let cancelled = false;
+    async function loadLocalData() {
+      let storageScope;
+      try {
+        storageScope = await getWorkBridgeStorageScope();
+      } catch {
+        if (!cancelled) setLoaded(true);
+        return;
+      }
+
+      try {
+      const profileRaw = localStorage.getItem(storageScope.key(PROFILE_KEY));
       if (profileRaw) {
         const profile: unknown = JSON.parse(profileRaw);
 
@@ -274,7 +285,6 @@ export default function OpportunitiesPage() {
             typeof data.goal === "string" &&
             opportunities.some((item) => item.title === data.goal)
           ) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- Restore the saved career profile after hydration.
             setCareer(data.goal);
           }
 
@@ -304,7 +314,7 @@ export default function OpportunitiesPage() {
         }
       }
 
-      const progressRaw = localStorage.getItem(PROGRESS_KEY);
+      const progressRaw = localStorage.getItem(storageScope.key(PROGRESS_KEY));
       if (progressRaw) {
         const parsed: unknown = JSON.parse(progressRaw);
 
@@ -323,7 +333,7 @@ export default function OpportunitiesPage() {
         }
       }
 
-      const evidenceRaw = localStorage.getItem(EVIDENCE_KEY);
+      const evidenceRaw = localStorage.getItem(storageScope.key(EVIDENCE_KEY));
       if (evidenceRaw) {
         const parsed: unknown = JSON.parse(evidenceRaw);
 
@@ -338,9 +348,14 @@ export default function OpportunitiesPage() {
       }
     } catch {
       // Keep the page usable if saved browser data is missing or invalid.
-    } finally {
-      setLoaded(true);
+      } finally {
+        if (!cancelled) setLoaded(true);
+      }
     }
+    void loadLocalData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const selectedOpportunity =

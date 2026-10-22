@@ -16,6 +16,13 @@ export default function AuthPage() {
   const [error, setError] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("error") ? "We couldn't verify your email link. Please try signing in again." : "");
 
   useEffect(() => {
+    const requestedMode = new URLSearchParams(window.location.search).get("mode");
+    if (requestedMode === "signin" || requestedMode === "signup") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync requested auth mode from URL
+      setMode(requestedMode);
+    }
+  }, []);
+  useEffect(() => {
     let active = true;
 
     supabase.auth.getSession().then(({ data }) => {

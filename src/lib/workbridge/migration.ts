@@ -1,12 +1,10 @@
-import { createClient } from "@/lib/supabase/client";
+﻿import { createClient } from "@/lib/supabase/client";
 import {
   ASSESSMENT_STORAGE_KEY,
   PORTFOLIO_STORAGE_KEY,
   ROADMAP_STORAGE_KEY,
   readWorkBridgeCloudSnapshot,
 } from "@/lib/workbridge/sync";
-
-const LEGACY_ROADMAP_KEY = "workbridge-roadmap-completed";
 
 const CAREER_GOALS = [
   "IT Support Technician",
@@ -50,8 +48,8 @@ function isCareerGoal(value: unknown): value is CareerGoal {
     CAREER_GOALS.includes(value as CareerGoal);
 }
 
-function readLocalProfile(): LocalProfile | null {
-  const raw = window.localStorage.getItem(ASSESSMENT_STORAGE_KEY);
+function readLocalProfile(storageKey: string): LocalProfile | null {
+  const raw = window.localStorage.getItem(storageKey);
   if (!raw) return null;
 
   const parsed: unknown = JSON.parse(raw);
@@ -65,9 +63,9 @@ function readLocalProfile(): LocalProfile | null {
   };
 }
 
-function readLocalRoadmap(): Record<string, string[]> {
+function readLocalRoadmap(storageKey: string): Record<string, string[]> {
   const result: Record<string, string[]> = {};
-  const raw = window.localStorage.getItem(ROADMAP_STORAGE_KEY);
+  const raw = window.localStorage.getItem(storageKey);
 
   if (raw) {
     const parsed: unknown = JSON.parse(raw);
@@ -79,18 +77,13 @@ function readLocalRoadmap(): Record<string, string[]> {
     } else if (Array.isArray(parsed)) {
       result["IT Support Technician"] = stringArray(parsed);
     }
-  } else {
-    const legacy = window.localStorage.getItem(LEGACY_ROADMAP_KEY);
-    if (legacy) {
-      result["IT Support Technician"] = stringArray(JSON.parse(legacy));
-    }
   }
 
   return result;
 }
 
-function readLocalEvidence(): LocalEvidence[] {
-  const raw = window.localStorage.getItem(PORTFOLIO_STORAGE_KEY);
+function readLocalEvidence(storageKey: string): LocalEvidence[] {
+  const raw = window.localStorage.getItem(storageKey);
   if (!raw) return [];
 
   const parsed: unknown = JSON.parse(raw);
@@ -133,9 +126,9 @@ export async function migrateLocalWorkBridgeToCloud(): Promise<{
   if (!user) throw new Error("Sign in before migrating WorkBridge data.");
 
   // Parse local data before writing anything. Invalid JSON stops the migration.
-  const localProfile = readLocalProfile();
-  const localRoadmap = readLocalRoadmap();
-  const localEvidence = readLocalEvidence();
+  const localProfile = readLocalProfile(`${ASSESSMENT_STORAGE_KEY}:user:${user.id}`);
+  const localRoadmap = readLocalRoadmap(`${ROADMAP_STORAGE_KEY}:user:${user.id}`);
+  const localEvidence = readLocalEvidence(`${PORTFOLIO_STORAGE_KEY}:user:${user.id}`);
 
   // Read cloud data and check whether a profile row already exists.
   const cloud = await readWorkBridgeCloudSnapshot();

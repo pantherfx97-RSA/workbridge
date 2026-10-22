@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { migrateLocalWorkBridgeToCloud } from "@/lib/workbridge/migration";
-import { readWorkBridgeCloudSnapshot } from "@/lib/workbridge/sync";
+import { getWorkBridgeStorageScope, readWorkBridgeCloudSnapshot } from "@/lib/workbridge/sync";
 
 type Career =
   | "IT Support Technician"
@@ -209,9 +209,22 @@ export default function ProgressPage() {
       let localProfile: Profile | null = null;
       const localProgress: Record<string, string[]> = {};
       let localEvidence: Evidence[] = [];
+      let storageScope;
+      try {
+        storageScope = await getWorkBridgeStorageScope();
+      } catch {
+        if (!cancelled) {
+          setStorageError(true);
+          setLoaded(true);
+        }
+        return;
+      }
+      const profileStorageKey = storageScope.key(PROFILE_KEY);
+      const progressStorageKey = storageScope.key(PROGRESS_KEY);
+      const evidenceStorageKey = storageScope.key(EVIDENCE_KEY);
 
       try {
-        const rawProfile = window.localStorage.getItem(PROFILE_KEY);
+        const rawProfile = window.localStorage.getItem(profileStorageKey);
 
         if (rawProfile) {
           const parsed: unknown = JSON.parse(rawProfile);
@@ -237,7 +250,7 @@ export default function ProgressPage() {
       }
 
       try {
-        const rawProgress = window.localStorage.getItem(PROGRESS_KEY);
+        const rawProgress = window.localStorage.getItem(progressStorageKey);
 
         if (rawProgress) {
           const parsed: unknown = JSON.parse(rawProgress);
@@ -251,7 +264,7 @@ export default function ProgressPage() {
           } else if (Array.isArray(parsed)) {
             localProgress["IT Support Technician"] = readStringArray(parsed);
           }
-        } else {
+        } else if (!storageScope.userId) {
           const legacy = window.localStorage.getItem("workbridge-roadmap-completed");
 
           if (legacy) {
@@ -263,7 +276,7 @@ export default function ProgressPage() {
       }
 
       try {
-        const rawEvidence = window.localStorage.getItem(EVIDENCE_KEY);
+        const rawEvidence = window.localStorage.getItem(evidenceStorageKey);
 
         if (rawEvidence) {
           const parsed: unknown = JSON.parse(rawEvidence);
@@ -341,9 +354,21 @@ export default function ProgressPage() {
         if (!cancelled) {
           setCloudStatus("Cloud progress loaded and merged with this browser.");
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          setCloudStatus("Showing local progress. Cloud data could not be loaded; sign in to sync across browsers.");
+          if (
+            error instanceof Error &&
+            (
+              error.message === "Sign in before syncing WorkBridge data." ||
+              error.name === "AuthSessionMissingError" ||
+              error.message === "Auth session missing!"
+            )
+          ) {
+            setCloudStatus("Showing local progress. Sign in to sync across browsers.");
+          } else {
+            console.error("WorkBridge cloud progress failed to load:", error);
+            setCloudStatus("Showing local progress. Cloud sync could not be loaded. Check your connection and try again.");
+          }
         }
       }
 
@@ -438,28 +463,7 @@ export default function ProgressPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-10 text-slate-100 sm:px-8 sm:py-14">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="text-lg font-bold tracking-tight text-white"
-          >
-            WorkBridge<span className="text-cyan-400">.</span>
-          </Link>
-          <nav className="flex flex-wrap gap-4 text-sm text-slate-300">
-            <Link className="hover:text-cyan-300" href="/assessment">
-              Assessment
-            </Link>
-            <Link className="hover:text-cyan-300" href="/roadmap">
-              Roadmap
-            </Link>
-            <Link className="hover:text-cyan-300" href="/portfolio">
-              Portfolio
-            </Link>
-            <Link className="hover:text-cyan-300" href="/opportunities">
-              Opportunities
-            </Link>
-          </nav>
-        </header>
+
 
         <section className="mb-10">
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">
@@ -500,7 +504,7 @@ export default function ProgressPage() {
             from this browser to your signed-in WorkBridge account. Existing cloud
             profile data is preserved, roadmap completions are merged, duplicate
             portfolio entries are skipped, and your local browser data is not deleted.
-            Sign in first.
+            You must be signed in to your WorkBridge account before migrating local progress.
           </p>
           <button
             type="button"
@@ -536,7 +540,7 @@ export default function ProgressPage() {
 
         {!profile && (
           <section className="mb-8 rounded-3xl border border-cyan-400/20 bg-slate-900 p-6 sm:p-8">
-            <h2 className="text-xl font-semibold">Letâ€™s personalise your plan</h2>
+            <h2 className="text-xl font-semibold">Let{"\u2019"}s personalise your plan</h2>
             <p className="mt-3 max-w-2xl leading-7 text-slate-400">
               Complete the assessment first. WorkBridge can then show the
               learning and portfolio progress associated with your selected
@@ -546,7 +550,7 @@ export default function ProgressPage() {
               href="/assessment"
               className="mt-6 inline-flex rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
             >
-              Start assessment â†’
+              Start assessment {"\u2192"}
             </Link>
           </section>
         )}
@@ -570,7 +574,7 @@ export default function ProgressPage() {
               href="/assessment"
               className="mt-5 inline-block text-sm font-semibold text-cyan-300 hover:text-cyan-200"
             >
-              {profile ? "Review assessment â†’" : "Start assessment â†’"}
+              {profile ? "Review assessment \u2192" : "Start assessment \u2192"}
             </Link>
           </article>
 
@@ -590,7 +594,7 @@ export default function ProgressPage() {
               href="/roadmap"
               className="mt-5 inline-block text-sm font-semibold text-cyan-300 hover:text-cyan-200"
             >
-              Continue roadmap â†’
+              Continue roadmap {"\u2192"}
             </Link>
           </article>
 
@@ -611,7 +615,7 @@ export default function ProgressPage() {
               href="/portfolio"
               className="mt-5 inline-block text-sm font-semibold text-cyan-300 hover:text-cyan-200"
             >
-              View portfolio â†’
+              View portfolio {"\u2192"}
             </Link>
           </article>
         </section>
@@ -631,7 +635,7 @@ export default function ProgressPage() {
                   href="/assessment"
                   className="text-sm font-semibold text-cyan-300 hover:text-cyan-200"
                 >
-                  Update â†’
+                  Update {"\u2192"}
                 </Link>
               </div>
 
@@ -806,7 +810,7 @@ export default function ProgressPage() {
                               : "bg-slate-800 text-slate-400"
                           }`}
                         >
-                          {item.done ? "âœ“" : "â€¢"}
+                          {item.done ? "\u2713" : "\u2022"}
                         </span>
                         <div>
                           <p className="font-medium text-slate-100">{item.label}</p>
@@ -822,7 +826,7 @@ export default function ProgressPage() {
                         href={item.href}
                         className="shrink-0 text-sm font-semibold text-cyan-300 hover:text-cyan-200"
                       >
-                        {item.action} â†’
+                        {item.action} {"\u2192"}
                       </Link>
                     </div>
                   ))}
@@ -843,7 +847,7 @@ export default function ProgressPage() {
             href={nextAction.href}
             className="mt-6 inline-flex rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
           >
-            {nextAction.label} â†’
+            {nextAction.label} {"\u2192"}
           </Link>
         </section>
 

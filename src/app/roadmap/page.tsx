@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { readWorkBridgeCloudSnapshot, saveWorkBridgeRoadmapProgress } from "@/lib/workbridge/sync";
+import { getWorkBridgeStorageScope, readWorkBridgeCloudSnapshot, saveWorkBridgeRoadmapProgress } from "@/lib/workbridge/sync";
 
 type CareerGoal =
   | "IT Support Technician"
@@ -37,7 +37,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
     description: "Build practical computer support, troubleshooting and networking skills.",
     weeks: [
       {
-        title: "Week 1 — Build your foundations",
+        title: "Week 1  -  Build your foundations",
         description: "Understand computers and operating systems.",
         tasks: [
           "Learn the main components of a computer.",
@@ -47,7 +47,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Create a computer troubleshooting checklist.",
       },
       {
-        title: "Week 2 — Learn networking",
+        title: "Week 2  -  Learn networking",
         description: "Understand how devices connect and communicate.",
         tasks: [
           "Learn IP addresses, routers, DNS and DHCP.",
@@ -57,7 +57,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Write a home-network troubleshooting guide.",
       },
       {
-        title: "Week 3 — Practise security and support",
+        title: "Week 3  -  Practise security and support",
         description: "Develop safe computing and customer support skills.",
         tasks: [
           "Learn password security, MFA and phishing awareness.",
@@ -67,7 +67,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Build a portfolio of three sample IT support tickets.",
       },
       {
-        title: "Week 4 — Prove what you can do",
+        title: "Week 4  -  Prove what you can do",
         description: "Turn your learning into evidence.",
         tasks: [
           "Complete a practical troubleshooting exercise.",
@@ -82,7 +82,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
     description: "Learn programming fundamentals, build a small application and demonstrate your code.",
     weeks: [
       {
-        title: "Week 1 — Start programming",
+        title: "Week 1  -  Start programming",
         description: "Learn how code works and practise problem-solving.",
         tasks: [
           "Learn variables, data types and basic operators.",
@@ -92,7 +92,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Build a command-line calculator.",
       },
       {
-        title: "Week 2 — Build web foundations",
+        title: "Week 2  -  Build web foundations",
         description: "Understand the building blocks of web applications.",
         tasks: [
           "Learn HTML page structure and semantic elements.",
@@ -102,7 +102,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Create a responsive personal profile webpage.",
       },
       {
-        title: "Week 3 — Work like a developer",
+        title: "Week 3  -  Work like a developer",
         description: "Practise source control, debugging and testing.",
         tasks: [
           "Learn Git commits and create a repository.",
@@ -112,7 +112,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Build a task tracker with add and complete actions.",
       },
       {
-        title: "Week 4 — Publish your evidence",
+        title: "Week 4  -  Publish your evidence",
         description: "Prepare a project others can review.",
         tasks: [
           "Improve validation and handle common input errors.",
@@ -127,7 +127,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
     description: "Develop safe security fundamentals, practise defensive analysis and document findings.",
     weeks: [
       {
-        title: "Week 1 — Learn security foundations",
+        title: "Week 1  -  Learn security foundations",
         description: "Understand systems, threats and security principles.",
         tasks: [
           "Learn confidentiality, integrity and availability.",
@@ -137,7 +137,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Create a personal cybersecurity safety checklist.",
       },
       {
-        title: "Week 2 — Understand networks",
+        title: "Week 2  -  Understand networks",
         description: "Learn how systems communicate and where risks arise.",
         tasks: [
           "Study IP addresses, ports and common protocols.",
@@ -147,7 +147,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Draw and explain a simple home network.",
       },
       {
-        title: "Week 3 — Practise defensive analysis",
+        title: "Week 3  -  Practise defensive analysis",
         description: "Recognise suspicious activity and document evidence.",
         tasks: [
           "Learn what system and security logs record.",
@@ -157,7 +157,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Create a mock phishing investigation report.",
       },
       {
-        title: "Week 4 — Demonstrate readiness",
+        title: "Week 4  -  Demonstrate readiness",
         description: "Build evidence of safe, ethical security practice.",
         tasks: [
           "Complete a beginner defensive security lab you are authorised to use.",
@@ -172,7 +172,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
     description: "Learn data handling, spreadsheet analysis, visualisation and evidence-based reporting.",
     weeks: [
       {
-        title: "Week 1 — Understand data",
+        title: "Week 1  -  Understand data",
         description: "Learn how to organise and check information.",
         tasks: [
           "Learn rows, columns, data types and structured tables.",
@@ -182,7 +182,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Clean a small public or fictional dataset.",
       },
       {
-        title: "Week 2 — Ask questions with data",
+        title: "Week 2  -  Ask questions with data",
         description: "Practise querying and summarising information.",
         tasks: [
           "Learn basic SQL SELECT and WHERE queries.",
@@ -192,7 +192,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Write a short analysis using a sample dataset.",
       },
       {
-        title: "Week 3 — Visualise findings",
+        title: "Week 3  -  Visualise findings",
         description: "Turn results into understandable charts.",
         tasks: [
           "Choose appropriate charts for different data questions.",
@@ -202,7 +202,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Create a one-page data dashboard.",
       },
       {
-        title: "Week 4 — Present your analysis",
+        title: "Week 4  -  Present your analysis",
         description: "Communicate useful, honest conclusions.",
         tasks: [
           "Write a concise summary of the question and method.",
@@ -217,7 +217,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
     description: "Build networking knowledge, practise diagnostics and document a small network.",
     weeks: [
       {
-        title: "Week 1 — Learn network basics",
+        title: "Week 1  -  Learn network basics",
         description: "Understand devices, addressing and connectivity.",
         tasks: [
           "Learn the roles of routers, switches and access points.",
@@ -227,7 +227,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Draw a labelled home or small-office network.",
       },
       {
-        title: "Week 2 — Practise diagnostics",
+        title: "Week 2  -  Practise diagnostics",
         description: "Learn to investigate common connection problems.",
         tasks: [
           "Practise ipconfig and ping on your own device.",
@@ -237,7 +237,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Write a step-by-step connectivity troubleshooting guide.",
       },
       {
-        title: "Week 3 — Understand network security",
+        title: "Week 3  -  Understand network security",
         description: "Learn how networks are protected and maintained.",
         tasks: [
           "Study Wi-Fi encryption and secure router settings.",
@@ -247,7 +247,7 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
         project: "Create a small-network security checklist.",
       },
       {
-        title: "Week 4 — Demonstrate your skills",
+        title: "Week 4  -  Demonstrate your skills",
         description: "Turn networking practice into evidence.",
         tasks: [
           "Complete an authorised beginner networking lab.",
@@ -261,17 +261,18 @@ const careerPaths: Record<CareerGoal, { description: string; weeks: Week[] }> = 
 };
 
 export default function RoadmapPage() {
-  const [goal, setGoal] = useState<CareerGoal>("IT Support Technician");
+  const [goal, setGoal] = useState<CareerGoal | "">("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [progressByGoal, setProgressByGoal] = useState<Record<string, string[]>>({});
   const [loaded, setLoaded] = useState(false);
+  const [progressStorageKey, setProgressStorageKey] = useState(PROGRESS_KEY);
   const [storageAvailable, setStorageAvailable] = useState(true);
   const [cloudSyncAvailable, setCloudSyncAvailable] = useState(false);
   const [cloudStatus, setCloudStatus] = useState("Loading saved progress...");
 
-  const weeks = careerPaths[goal].weeks;
+  const weeks = goal ? careerPaths[goal].weeks : [];
   const allTasks = weeks.flatMap((week) => week.tasks);
-  const completed = progressByGoal[goal] ?? [];
+  const completed = goal ? progressByGoal[goal] ?? [] : [];
   const totalTasks = allTasks.length;
   const progress = Math.round((completed.length / totalTasks) * 100);
   const missingSkills = validSkillIds.filter(
@@ -281,9 +282,23 @@ export default function RoadmapPage() {
   useEffect(() => {
     async function loadProgress() {
       const nextProgress: Record<string, string[]> = {};
+      let storageScope;
+      try {
+        storageScope = await getWorkBridgeStorageScope();
+        setProgressStorageKey(storageScope.key(PROGRESS_KEY));
+      } catch {
+        setStorageAvailable(false);
+        setCloudSyncAvailable(false);
+        setCloudStatus("Account storage could not be verified. Reload and sign in again.");
+        setProgressByGoal({});
+        setLoaded(true);
+        return;
+      }
+      const profileStorageKey = storageScope.key(PROFILE_KEY);
+      const progressStorageKeyForLoad = storageScope.key(PROGRESS_KEY);
 
       try {
-        const savedProfile = window.localStorage.getItem(PROFILE_KEY);
+        const savedProfile = window.localStorage.getItem(profileStorageKey);
 
         if (savedProfile) {
           const profile: unknown = JSON.parse(savedProfile);
@@ -313,7 +328,7 @@ export default function RoadmapPage() {
       }
 
       try {
-        const savedProgress = window.localStorage.getItem(PROGRESS_KEY);
+        const savedProgress = window.localStorage.getItem(progressStorageKeyForLoad);
 
         if (savedProgress) {
           const parsed: unknown = JSON.parse(savedProgress);
@@ -333,7 +348,7 @@ export default function RoadmapPage() {
               }
             });
           }
-        } else {
+        } else if (!storageScope.userId) {
           const legacy = window.localStorage.getItem(LEGACY_KEY);
 
           if (legacy) {
@@ -358,7 +373,7 @@ export default function RoadmapPage() {
         const cloudSnapshot = await readWorkBridgeCloudSnapshot();
 
         // Use the account's career goal when this browser has no valid local goal.
-        const savedProfile = window.localStorage.getItem(PROFILE_KEY);
+        const savedProfile = window.localStorage.getItem(profileStorageKey);
         let hasValidLocalGoal = false;
 
         if (savedProfile) {
@@ -405,9 +420,23 @@ export default function RoadmapPage() {
 
         setCloudSyncAvailable(true);
         setCloudStatus("Cloud progress loaded and merged with this browser.");
-      } catch {
+      } catch (error) {
         setCloudSyncAvailable(false);
-        setCloudStatus("Showing local progress. Cloud data could not be loaded; cloud saving is paused.");
+
+        const hasNoSession =
+          error instanceof Error &&
+          (
+            error.message === "Sign in before syncing WorkBridge data." ||
+            error.name === "AuthSessionMissingError" ||
+            error.message === "Auth session missing!"
+          );
+
+        if (hasNoSession) {
+          setCloudStatus("Showing local progress. Sign in to sync across browsers.");
+        } else {
+          console.error("WorkBridge roadmap cloud sync failed:", error);
+          setCloudStatus("Showing local progress. Cloud data could not be loaded; cloud saving is paused.");
+        }
       }
 
       setProgressByGoal(nextProgress);
@@ -421,13 +450,13 @@ export default function RoadmapPage() {
     if (!loaded) return;
 
     try {
-      window.localStorage.setItem(PROGRESS_KEY, JSON.stringify(progressByGoal));
+      window.localStorage.setItem(progressStorageKey, JSON.stringify(progressByGoal));
 
     } catch {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Report a browser-storage write failure.
       setStorageAvailable(false);
     }
-  }, [progressByGoal, loaded]);
+  }, [progressByGoal, loaded, progressStorageKey]);
 
   async function persistCareerProgress(career: CareerGoal, tasks: string[]) {
     if (!cloudSyncAvailable) {
@@ -447,6 +476,7 @@ export default function RoadmapPage() {
   }
 
   function toggleTask(task: string) {
+    if (!goal) return;
     const currentTasks = progressByGoal[goal] ?? [];
     const nextTasks = currentTasks.includes(task)
       ? currentTasks.filter((item) => item !== task)
@@ -463,6 +493,7 @@ export default function RoadmapPage() {
   }
 
   function resetProgress() {
+    if (!goal) return;
     const confirmed = window.confirm(
       `Reset completed tasks for ${goal}? Other career progress will be kept.`
     );
@@ -476,6 +507,23 @@ export default function RoadmapPage() {
     }
   }
 
+  if (loaded && !goal) {
+    return (
+      <main className="min-h-screen bg-[#080d18] px-5 py-8 text-white sm:px-8">
+        <div className="mx-auto max-w-4xl rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <h1 className="text-2xl font-bold">Choose your career goal</h1>
+          <p className="mt-3 leading-7 text-slate-300">
+            Complete your career assessment before starting a personalised roadmap.
+            Your existing saved progress will remain available.
+          </p>
+          <Link href="/assessment" className="mt-5 inline-block rounded-xl bg-blue-600 px-5 py-3 font-semibold hover:bg-blue-500">
+            Complete assessment
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#080d18] px-5 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-4xl">
@@ -484,7 +532,7 @@ export default function RoadmapPage() {
             Work<span className="text-blue-400">Bridge</span>
           </Link>
           <a href="/assessment" className="text-sm text-slate-400 hover:text-white">
-            ← Career assessment
+            Back to assessment
           </a>
         </header>
 
@@ -496,7 +544,7 @@ export default function RoadmapPage() {
             Your next 30 days start here.
           </h1>
           <p className="mt-5 max-w-2xl leading-7 text-slate-400">
-            {careerPaths[goal].description} Learn, practise and build evidence
+            {goal ? careerPaths[goal].description : ""} Learn, practise and build evidence
             of what you can do.
           </p>
         </section>
@@ -516,7 +564,7 @@ export default function RoadmapPage() {
                 {completed.length} of {totalTasks} learning tasks completed
               </p>
             </div>
-            <span className="text-2xl" aria-hidden="true">🎯</span>
+            <span className="text-2xl" aria-hidden="true">&#127919;</span>
           </div>
 
           <div
@@ -574,7 +622,7 @@ export default function RoadmapPage() {
             <ul className="mt-4 space-y-3">
               {missingSkills.map((skill) => (
                 <li key={skill} className="flex gap-3 text-sm text-slate-200">
-                  <span className="text-blue-300">→</span>
+                  <span className="text-blue-300">&#8226;</span>
                   <span>{skillLabels[skill]}</span>
                 </li>
               ))}
@@ -589,7 +637,7 @@ export default function RoadmapPage() {
             href="/assessment"
             className="mt-5 inline-block text-sm font-semibold text-blue-300 hover:text-blue-200"
           >
-            Update assessment answers →
+            Update assessment answers
           </a>
         </section>
 
@@ -641,11 +689,11 @@ export default function RoadmapPage() {
       "Cybersecurity Analyst": ["Security fundamentals", "Network security", "Threat awareness", "Security documentation"],
       "Data Analyst": ["Data cleaning", "SQL and databases", "Data visualisation", "Analytical problem-solving"],
       "Network Technician": ["Network configuration", "Network troubleshooting", "Network documentation", "Network troubleshooting"],
-    } as Record<string, string[]>)[goal]?.[careerPaths[goal].weeks.indexOf(week)] ?? ""
+    } as Record<string, string[]>)[goal]?.[(goal ? careerPaths[goal].weeks.indexOf(week) : -1)] ?? ""
   )}`}
   className="mt-3 inline-flex text-sm font-semibold text-blue-300 underline underline-offset-4 hover:text-blue-200"
 >
-  Add project evidence →
+  Add project evidence
 </a>
               </div>
             </article>
@@ -653,7 +701,7 @@ export default function RoadmapPage() {
         </section>
 
         <footer className="py-10 text-center text-sm text-slate-500">
-          WorkBridge · Learn it. Practise it. Prove it.
+          WorkBridge - Learn it. Practise it. Prove it.
         </footer>
       </div>
     </main>
